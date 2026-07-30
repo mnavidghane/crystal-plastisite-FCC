@@ -84,9 +84,9 @@ c----- Isotropic elastic stiffness D(6x6) ----------------------------
       D(3,1) = lambda
       D(3,2) = lambda
 
-      D(4,4) = mu
-      D(5,5) = mu
-      D(6,6) = mu
+      D(4,4) = 2.d0*mu
+      D(5,5) = 2.d0*mu
+      D(6,6) = 2.d0*mu
 
 c----- FCC slip systems ----------------------------------------------
       call init_fcc_schmid(Ms)
@@ -170,20 +170,16 @@ c  read old state
 c  total strain tensor
         call mat_from_vec(de, Einc)
 
-c  old stress tensor
-        call mat_from_vec(stressOld(1,ib), SigmaOld)
-
-c  trial elastic increment: ds = D * de
-        do i = 1,6
-          ds(i) = 0.d0
-          do j = 1,6
-            ds(i) = ds(i) + D(i,j)*de(j)
-          end do
-        end do
-
-c  trial stress tensor
+c  trial stress tensor (elastic increment only)
         call mat_from_vec(ds, SigmaTrial)
 
+c  add current (old) stress state -> total trial stress
+        do i = 1,3
+          do j = 1,3
+            SigmaTrial(i,j) = SigmaTrial(i,j) + SigmaOld(i,j)
+          end do
+        end do
+        
 c  resolved shear stresses
         do islip = 1, NSLIP
           Tau(islip) = 0.d0
