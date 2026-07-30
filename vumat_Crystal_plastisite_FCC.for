@@ -152,14 +152,6 @@ c=====================================================================
 c  CASE 2: stepTime > 0  → crystal plasticity active
 c=====================================================================
 
-c  init state at very first increment (totalTime=0)
-        if (totalTime .eq. 0.d0) then
-          do islip = 1, NSLIP
-            stateNew(islip,ib)       = 0.d0
-            stateNew(NSLIP+islip,ib) = tau0
-          end do
-        end if
-
 c  read old state
         do islip = 1, NSLIP
           Gamma_old(islip) = stateOld(islip,ib)
