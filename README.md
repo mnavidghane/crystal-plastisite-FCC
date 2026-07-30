@@ -217,5 +217,5 @@ Slip systems are hard-coded in a single, fixed local frame. Correct behavior for
 ## 7. Recommended Next Steps
 
 1. Re-run a simple single-crystal benchmark (e.g., uniaxial tension along a known orientation, single Gauss point / single element) and compare the predicted yield stress against the analytical Schmid-factor-based prediction (`σ_yield ≈ τ0 / max Schmid factor`) to confirm slip activates at the expected applied stress.
-2. Decide whether cubic elastic anisotropy (§6.3) and latent hardening (§6.4) are needed for the intended application (e.g., texture-sensitive rolling simulations may be more sensitive to these than others).
-3. If energy output is needed for any post-processing or validation step, implement §6.6.
+2. Decide whether cubic elastic anisotropy (§6.1) and latent hardening (§6.2) are needed for the intended application (e.g., texture-sensitive rolling simulations may be more sensitive to these than others).
+3. If energy output is needed for any post-processing or validation step, implement §6.4.
