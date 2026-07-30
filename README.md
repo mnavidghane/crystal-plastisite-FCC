@@ -212,10 +212,6 @@ Slip systems are hard-coded in a single, fixed local frame. Correct behavior for
 
 `enerInternNew` / `enerInelasNew` are simply carried over from the old values every increment and never incremented from the actual elastic/plastic work done. Abaqus's own documentation notes that if these are not defined, the energy balance (ALLIE, ALLPD, etc.) reported by Abaqus/Explicit will not be physically meaningful. This does not affect the stress solution itself, but energy-based outputs/diagnostics should not be trusted until this is implemented.
 
-### 6.5 Minor — redundant/dead initialization branch
-
-The `if (totalTime .eq. 0.d0)` block (re-initializing `Γ=0`, `g=τ0` directly into `stateNew`) is effectively unreachable in a single-step analysis, since `totalTime = 0` implies `stepTime = 0` as well, which is already caught (and exits via `cycle`) by the earlier `stepTime .eq. 0.d0` branch. Actual first-increment initialization is instead correctly handled by the defensive check `if (TauCR_old(islip) .le. 0.d0) TauCR_old(islip) = tau0` present elsewhere in the code. Harmless, but can be removed or clarified.
-
 ---
 
 ## 7. Recommended Next Steps
