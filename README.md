@@ -196,47 +196,23 @@ For polycrystal/Voronoi RVE models, each grain's element set needs its own `*ORI
 
 The following were identified during a code review and should be checked against your validated run(s) before publication or further use. None of these prevent the subroutine from compiling or running — they are physics/formulation issues that would not necessarily show up as a crash, only as a quantitatively (or even qualitatively) incorrect stress–strain response.
 
-### 6.1 Likely bug — Elastic shear stiffness understated by a factor of 2
-
-Per official Abaqus documentation, **VUMAT's `strainInc` shear components are stored as *tensor* strain components** (εᵢⱼ), unlike UMAT which uses *engineering* shear strain (γᵢⱼ = 2εᵢⱼ). The isotropic stiffness matrix currently sets:
-```
-D(4,4) = D(5,5) = D(6,6) = mu
-```
-Since σᵢⱼ = 2μ·εᵢⱼ (tensor convention) for i≠j, these terms should be:
-```
-D(4,4) = D(5,5) = D(6,6) = 2.d0*mu
-```
-As written, the elastic shear response (and any shear-stress-driven resolved shear stress) is computed at half its correct stiffness.
-
-### 6.2 Likely bug — Resolved shear stress computed from the stress *increment* only, not the accumulated stress
-
-```fortran
-call mat_from_vec(stressOld(1,ib), SigmaOld)   ! computed, but never used again
-...
-call mat_from_vec(ds, SigmaTrial)               ! built from ds (this increment's elastic
-                                                 ! stress change) only
-...
-Tau(islip) = Ms(i,j,islip)*SigmaTrial(i,j)      ! should use the *total* trial stress
-```
-`SigmaOld` is computed but never referenced again — a strong indicator that the intended line `SigmaTrial = SigmaOld + (tensor of ds)` (i.e., the full current trial stress state before plastic correction) was never completed. As written, the slip-driving stress `τ_s` reflects only the elastic stress increment accrued during the current (typically very small, in Explicit) time increment, not the actual accumulated stress state. This can substantially suppress or misrepresent slip activation, particularly with small explicit time increments. **Recommended fix:** build the trial stress as the old stress plus the elastic trial increment before resolving τ_s.
-
-### 6.3 Modeling simplification — Isotropic elasticity
+### 6.1 Modeling simplification — Isotropic elasticity
 
 Only two elastic constants (E, ν) are used. Real FCC (and BCC) single crystals exhibit cubic elastic anisotropy (three independent constants: C11, C12, C44) and typically a Zener anisotropy ratio significantly different from 1. This subroutine captures **plastic** anisotropy (via Schmid tensors) but not **elastic** anisotropy. Acceptable as a simplification, but should be stated explicitly wherever this model is used.
 
-### 6.4 Modeling simplification — Self-hardening only (no latent hardening)
+### 6.2 Modeling simplification — Self-hardening only (no latent hardening)
 
 Each slip system's CRSS evolves only as a function of its own accumulated slip; there is no latent-hardening (cross-hardening) interaction matrix coupling the 12 systems, which most established CP models (e.g., Bassani-Wu, Kalidindi-type latent hardening ratios q > 1) include for FCC metals.
 
-### 6.5 No orientation/rotation logic inside the subroutine
+### 6.3 No orientation/rotation logic inside the subroutine
 
 Slip systems are hard-coded in a single, fixed local frame. Correct behavior for a polycrystal **requires** each grain's element set to carry its own `*ORIENTATION` definition in the Abaqus input deck; the subroutine itself has no mechanism to assign or track per-grain crystallographic orientation.
 
-### 6.6 Energy variables not updated
+### 6.4 Energy variables not updated
 
 `enerInternNew` / `enerInelasNew` are simply carried over from the old values every increment and never incremented from the actual elastic/plastic work done. Abaqus's own documentation notes that if these are not defined, the energy balance (ALLIE, ALLPD, etc.) reported by Abaqus/Explicit will not be physically meaningful. This does not affect the stress solution itself, but energy-based outputs/diagnostics should not be trusted until this is implemented.
 
-### 6.7 Minor — redundant/dead initialization branch
+### 6.5 Minor — redundant/dead initialization branch
 
 The `if (totalTime .eq. 0.d0)` block (re-initializing `Γ=0`, `g=τ0` directly into `stateNew`) is effectively unreachable in a single-step analysis, since `totalTime = 0` implies `stepTime = 0` as well, which is already caught (and exits via `cycle`) by the earlier `stepTime .eq. 0.d0` branch. Actual first-increment initialization is instead correctly handled by the defensive check `if (TauCR_old(islip) .le. 0.d0) TauCR_old(islip) = tau0` present elsewhere in the code. Harmless, but can be removed or clarified.
 
@@ -244,7 +220,6 @@ The `if (totalTime .eq. 0.d0)` block (re-initializing `Γ=0`, `g=τ0` directly i
 
 ## 7. Recommended Next Steps
 
-1. Fix §6.1 (`D(4,4)/D(5,5)/D(6,6) = 2*mu`) and §6.2 (accumulate `SigmaOld` into the trial stress before resolving `τ_s`).
-2. Re-run a simple single-crystal benchmark (e.g., uniaxial tension along a known orientation, single Gauss point / single element) and compare the predicted yield stress against the analytical Schmid-factor-based prediction (`σ_yield ≈ τ0 / max Schmid factor`) to confirm slip activates at the expected applied stress.
-3. Decide whether cubic elastic anisotropy (§6.3) and latent hardening (§6.4) are needed for the intended application (e.g., texture-sensitive rolling simulations may be more sensitive to these than others).
-4. If energy output is needed for any post-processing or validation step, implement §6.6.
+1. Re-run a simple single-crystal benchmark (e.g., uniaxial tension along a known orientation, single Gauss point / single element) and compare the predicted yield stress against the analytical Schmid-factor-based prediction (`σ_yield ≈ τ0 / max Schmid factor`) to confirm slip activates at the expected applied stress.
+2. Decide whether cubic elastic anisotropy (§6.3) and latent hardening (§6.4) are needed for the intended application (e.g., texture-sensitive rolling simulations may be more sensitive to these than others).
+3. If energy output is needed for any post-processing or validation step, implement §6.6.
