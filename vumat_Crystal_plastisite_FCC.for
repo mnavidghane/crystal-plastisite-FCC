@@ -131,7 +131,7 @@ c         update stress
             stressNew(i,ib) = stressOld(i,ib) + ds(i)
           end do
 
-c         just copy state variables (or init CRSS if صفر است)
+c         just copy state variables (or init CRSS if! zero -> init to tau0)
           do islip = 1, NSLIP
             Gamma_old(islip) = stateOld(islip,ib)
             TauCR_old(islip) = stateOld(NSLIP+islip,ib)
@@ -145,7 +145,7 @@ c         energies
           enerInternNew(ib) = enerInternOld(ib)
           enerInelasNew(ib) = enerInelasOld(ib)
 
-          cycle   ! برو سراغ ib بعدی، پلاستیسیته فعلاً خاموش
+          cycle   ! next block
         end if
 
 c=====================================================================
@@ -162,8 +162,30 @@ c  read old state
 c  total strain tensor
         call mat_from_vec(de, Einc)
 
-c  trial stress tensor (elastic increment only)
-        call mat_from_vec(ds, SigmaTrial)
+c  elastic trial stress increment ds = D * de (was missing)
+      do i = 1,6
+        ds(i) = 0.d0
+        do j = 1,6
+          ds(i) = ds(i) + D(i,j)*de(j)
+        end do
+      end do
+c  VUMAT 3D Voigt order: 11, 22, 33, 12, 23, 13
+      do i = 1,3
+        do j = 1,3
+          SigmaOld(i,j) = 0.d0
+        end do
+      end do
+      SigmaOld(1,1) = stressOld(1,ib)
+      SigmaOld(2,2) = stressOld(2,ib)
+      SigmaOld(3,3) = stressOld(3,ib)
+      SigmaOld(1,2) = stressOld(4,ib)
+      SigmaOld(2,1) = stressOld(4,ib)
+      SigmaOld(2,3) = stressOld(5,ib)
+      SigmaOld(3,2) = stressOld(5,ib)
+      SigmaOld(1,3) = stressOld(6,ib)
+      SigmaOld(3,1) = stressOld(6,ib)
+c  trial stress tensor = old stress + elastic increment
+      call mat_from_vec(ds, SigmaTrial)
 
 c  add current (old) stress state -> total trial stress
         do i = 1,3
@@ -393,15 +415,12 @@ c=====================================================================
       include 'vaba_param.inc'
       double precision v(6), A(3,3)
 
-      A(1,1)=v(1)
-      A(2,2)=v(2)
-      A(3,3)=v(3)
       A(1,2)=v(4)
       A(2,1)=v(4)
-      A(1,3)=v(5)
-      A(3,1)=v(5)
-      A(2,3)=v(6)
-      A(3,2)=v(6)
+      A(2,3)=v(5)
+      A(3,2)=v(5)
+      A(1,3)=v(6)
+      A(3,1)=v(6)
       return
       end
 
@@ -414,8 +433,8 @@ c=====================================================================
       v(2)=A(2,2)
       v(3)=A(3,3)
       v(4)=A(1,2)
-      v(5)=A(1,3)
-      v(6)=A(2,3)
+      v(5)=A(2,3)
+      v(6)=A(1,3)
       return
       end
 
